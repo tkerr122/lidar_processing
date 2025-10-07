@@ -79,22 +79,22 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       nlas1 <- las - dtm_idw
       nlas2 <- las - dtm_kriging
       rm(las)
-
-      # Generate Canopy Height Model (CHM)
-      chm_1 <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
-      chm_2 <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
-
-      rm(nlas)
       
       # Ensure the CHM is a RasterLayer object
-      if (class(chm) != "RasterLayer") {
-        chm <- raster(chm)
+      if (class(dtm_idw) != "RasterLayer") {
+        dtm_idw <- raster(dtm_idw)
+      }
+      if (class(dtm_kriging) != "RasterLayer") {
+        dtm_kriging <- raster(dtm_kriging)
       }
       
       # Reproject the raster to EPSG:3857
       proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
-      chm_r <- projectRaster(chm, crs = proj, res = 4.77731426716)
-      rm(chm)
+      dtm_idw_r <- projectRaster(dtm_idw, crs = proj, res = 4.77731426716)
+      dtm_kriging_r <- projectRaster(dtm_kriging, crs = proj, res = 4.77731426716)
+
+      rm(dtm_idw)
+      rm(dtm_idw)
       
       # Stretch the raster to 8-bit depending on projection
       chm_r <- chm_r * scale_factor
