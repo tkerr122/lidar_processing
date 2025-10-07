@@ -32,15 +32,7 @@ fi
 
 nb_jobs=100
 
-# # Download from .txt file
-# cd /gpfs/glad1/Theo/Data/Lidar/LAZ/${folder} || exit
-# wget -i "OR_UpperJohnDay.txt" 
-
-# # Continue an interrupted download with the -c flag
-# cd /gpfs/glad1/Theo/Data/Lidar/LAZ/${folder} || exit
-# wget -c -nc -i "${folder}${txt_file_number}.txt"
-
 # Download files in parallel
-cd /gpfs/glad1/Theo/Data/Lidar/LAZ/${survey} || exit
+cd /gpfs/glad1/Theo/Data/Capstone/LAZ/${survey} || exit
 module load parallel/20151222
 cat "${survey}${txt_file_number}.txt" | parallel -j$nb_jobs wget -c -nc --wait=5 --random-wait --limit-rate=3M --no-check-certificate --retry-connrefused {}

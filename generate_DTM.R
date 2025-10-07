@@ -22,13 +22,16 @@ folder <- args$survey
 cl <- args$cores
 
 # Set working directory
-input_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/LAZ/", folder)
-idw_output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs", folder, "_DTM_IDW")
-kriging_output_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/CHMs_raw/", folder, "_DTM_Kriging")
+input_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/LAZ/", folder)
+idw_output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_IDW")
+kriging_output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_Kriging")
 
 # Create output directory if it doesn't exist
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir)
+if (!dir.exists(idw_output_dir)) {
+  dir.create(idw_output_dir)
+}
+if (!dir.exists(kriging_output_dir)) {
+  dir.create(kriging_output_dir)
 }
 
 # List all the .laz files in the input directory
@@ -40,7 +43,8 @@ registerDoParallel(cl)
 # Parallelized loop for processing LAS files
 foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar% {
   # Generate output file name
-  output_file <- file.path(output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_CHM.tif"))
+  idw_output_file <- file.path(idw_output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_DTM_IDW.tif"))
+  kriging_output_file <- file.path(kriging_output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_DTM_Kriging.tif"))
 
   # Check if the file exists
   if (file.exists(output_file)) {
@@ -92,20 +96,17 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
       dtm_idw_r <- projectRaster(dtm_idw, crs = proj, res = 4.77731426716)
       dtm_kriging_r <- projectRaster(dtm_kriging, crs = proj, res = 4.77731426716)
-
       rm(dtm_idw)
       rm(dtm_idw)
-      
-      # Stretch the raster to 8-bit depending on projection
-      chm_r <- chm_r * scale_factor
-      chm_r[chm_r > 60] <- 60
-      chm_r_stretched <- ceiling(chm_r * 4)
-      rm(chm_r)
       
       # Save as .tif using LZW compression
-      writeRaster(chm_r_stretched, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
-      print(output_file)
-      rm(chm_r_stretched)
+      writeRaster(dtm_idw_r, filename = idw_output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
+      print(idw_output_file)
+      rm(dtm_idw_r)
+
+      writeRaster(dtm_kriging_r, filename = kriging_output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
+      print(kriging_output_file)
+      rm(dtm_kriging_r)
     }
   }
 }
