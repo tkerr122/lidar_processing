@@ -10,7 +10,7 @@ suppressPackageStartupMessages({
 })
 
 # Create argument parser
-parser <- ArgumentParser(description = "LAZ to CHM processing script")
+parser <- ArgumentParser(description = "DTM processing script")
 parser$add_argument("-s", "--survey", help = "LAZ Survey name", required=TRUE)
 parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
 
@@ -23,7 +23,8 @@ cl <- args$cores
 
 # Set working directory
 input_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/LAZ/", folder)
-output_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/CHMs_raw/", folder, "_CHM")
+idw_output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs", folder, "_DTM_IDW")
+kriging_output_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/CHMs_raw/", folder, "_DTM_Kriging")
 
 # Create output directory if it doesn't exist
 if (!dir.exists(output_dir)) {
@@ -71,14 +72,18 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       if (is.empty(las)) next
 
       # Generate Digital Terrain Model (DTM)
-      dtm <- rasterize_terrain(las, res = resolution, knnidw())
+      dtm_idw <- rasterize_terrain(las, res = resolution, knnidw())
+      dtm_kriging <- rasterize_terrain(las, res = resolution, kriging())
 
       # Normalize the point cloud
-      nlas <- las - dtm
-      rm(las, dtm)
+      nlas1 <- las - dtm_idw
+      nlas2 <- las - dtm_kriging
+      rm(las)
 
       # Generate Canopy Height Model (CHM)
-      chm <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
+      chm_1 <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
+      chm_2 <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
+
       rm(nlas)
       
       # Ensure the CHM is a RasterLayer object
