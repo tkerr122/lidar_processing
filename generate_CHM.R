@@ -7,33 +7,25 @@ suppressPackageStartupMessages({
   library(rlas)
   library(stringr)
   library(argparse)
-  library(tictoc)
 })
 
 # Create argument parser
-parser <- ArgumentParser(description = "DTM processing script")
-parser$add_argument("-s", "--survey", help = "LAZ Survey name", required = TRUE)
-parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required = TRUE)
-parser$add_argument("-a", "--algorithm", help = "DTM algorithm", required = TRUE)
+parser <- ArgumentParser(description = "LAZ to CHM processing script")
+parser$add_argument("-s", "--survey", help = "LAZ Survey name", required=TRUE)
+parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
 
 # Parse arguments
 args <- parser$parse_args()
 
-# Set variables
+# Set variables from command line arguments
 folder <- args$survey
 cl <- args$cores
-algo <- args$algorithm
-input_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/LAZ/", folder)
 
-if (tolower(algo) == "idw") {
-  dtm_algorithm <- knnidw()
-  output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_IDW")
-} else if (tolower(algo) == "kriging") {
-  dtm_algorithm <- kriging()
-  output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_Kriging")
-} else {
-  stop("You must either enter IDW or Kriging for the algorithm")
-}
+# Set working directory
+input_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/LAZ/", folder)
+output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/CHMs/", folder, "_CHM")
+
+# Create output directory if it doesn't exist
 if (!dir.exists(output_dir)) {
   dir.create(output_dir)
 }
@@ -41,14 +33,13 @@ if (!dir.exists(output_dir)) {
 # List all the .laz files in the input directory
 laz_files <- list.files(input_dir, pattern = "\\.laz$", full.names = TRUE)
 
-tic()
 # Set up a parallel cluster: cl = number of cores
 registerDoParallel(cl)
 
-# Parallelized loop for processing LAS files into DTM using given algorithm
+# Parallelized loop for processing LAS files
 foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar% {
   # Generate output file name
-  output_file <- file.path(output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_DTM.tif"))
+  output_file <- file.path(output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_CHM.tif"))
 
   # Check if the file exists
   if (file.exists(output_file)) {
@@ -64,7 +55,7 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
     } else {
       # Read the LAS file
       las <- readLAS(laz_file, filter = "-keep_class 1 2 -drop_withheld -drop_overlap")
-      crs <- as.character(projection(las))
+      crs <- projection(las)
       vunits <- str_extract(crs, "(?<=\\+vunits=)[^\\s]+")
       if (vunits %in% c("us-ft", "ft")) {
         scale_factor <- 0.3048
@@ -80,33 +71,36 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       if (is.empty(las)) next
 
       # Generate Digital Terrain Model (DTM)
-      dtm <- rasterize_terrain(las, res = resolution, dtm_algorithm)
+      dtm <- rasterize_terrain(las, res = resolution, knnidw())
 
-      # Ensure the DTM is a RasterLayer object
-      if (class(dtm) != "RasterLayer") {
-        dtm <- raster(dtm)
+      # Normalize the point cloud
+      nlas <- las - dtm
+      rm(las, dtm)
+
+      # Generate Canopy Height Model (CHM)
+      chm <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
+      rm(nlas)
+      
+      # Ensure the CHM is a RasterLayer object
+      if (class(chm) != "RasterLayer") {
+        chm <- raster(chm)
       }
-
+      
       # Reproject the raster to EPSG:3857
       proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
-      dtm_r <- projectRaster(dtm, crs = proj, res = 4.77731426716)
-      rm(dtm)
-
+      chm_r <- projectRaster(chm, crs = proj, res = 4.77731426716)
+      rm(chm)
+      
+      # Stretch the raster to 8-bit depending on projection
+      chm_r <- chm_r * scale_factor
+      chm_r[chm_r > 60] <- 60
+      chm_r_stretched <- ceiling(chm_r * 4)
+      rm(chm_r)
+      
       # Save as .tif using LZW compression
-      writeRaster(dtm_r, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "FLT4S")
+      writeRaster(chm_r_stretched, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
       print(output_file)
-      rm(dtm_r)
+      rm(chm_r_stretched)
     }
   }
 }
-
-# Extract timing
-timing <- toc(log = TRUE)
-elapsed_time <- timing$toc - timing$tic
-
-# Write to output file
-write(
-  paste(Sys.time(), "-DTM processing took", round(elapsed_time, 2), "seconds"),
-  file = "/gpfs/glad1/Theo/Data/Capstone/time.txt",
-  append = TRUE
-)
