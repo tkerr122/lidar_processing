@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 # Create argument parser
 parser <- ArgumentParser(description = "DTM processing script")
 parser$add_argument("-s", "--survey", help = "LAZ Survey name", required = TRUE)
-parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required = TRUE)
+parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
 parser$add_argument("-a", "--algorithm", help = "DTM algorithm", required = TRUE)
 
 # Parse arguments
@@ -23,12 +23,13 @@ args <- parser$parse_args()
 folder <- args$survey
 cl <- args$cores
 algo <- args$algorithm
+algo <- tolower(algo)
 input_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/LAZ/", folder)
 
-if (tolower(algo) == "idw") {
+if (algo == "idw") {
   dtm_algorithm <- knnidw()
   output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_IDW")
-} else if (tolower(algo) == "kriging") {
+} else if (algo == "kriging") {
   dtm_algorithm <- kriging()
   output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/DTMs/", folder, "_DTM_Kriging")
 } else {
@@ -105,8 +106,9 @@ timing <- toc(log = TRUE)
 elapsed_time <- timing$toc - timing$tic
 
 # Write to output file
+time_file <- paste0("/gpfs/glad1/Theo/Data/Capstone/", algo, "_time.txt")
 write(
   paste(Sys.time(), "-DTM processing took", round(elapsed_time, 2), "seconds"),
-  file = "/gpfs/glad1/Theo/Data/Capstone/time.txt",
+  file = time_file,
   append = TRUE
 )
