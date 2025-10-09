@@ -42,8 +42,8 @@ if (!dir.exists(output_dir)) {
 # List all the .laz files in the input directory
 laz_files <- list.files(input_dir, pattern = "\\.laz$", full.names = TRUE)
 
-tic()
 # Set up a parallel cluster: cl = number of cores
+tic()
 registerDoParallel(cl)
 
 # Parallelized loop for processing LAS files into DTM using given algorithm

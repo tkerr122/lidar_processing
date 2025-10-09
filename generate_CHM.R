@@ -7,25 +7,38 @@ suppressPackageStartupMessages({
   library(rlas)
   library(stringr)
   library(argparse)
+  library(tictoc)
 })
 
 # Create argument parser
 parser <- ArgumentParser(description = "LAZ to CHM processing script")
-parser$add_argument("-s", "--survey", help = "LAZ Survey name", required=TRUE)
-parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
+parser$add_argument("-s", "--survey", help = "LAZ Survey name", required = TRUE)
+parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required = TRUE)
+parser$add_argument("-a", "--algorithm", help = "CHM algorithm", required = TRUE)
 
 # Parse arguments
 args <- parser$parse_args()
 
-# Set variables from command line arguments
+# Set variables 
 folder <- args$survey
 cl <- args$cores
+algo <- args$algorithm
+algo <- tolower(algo)
 
-# Set working directory
 input_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/LAZ/", folder)
-output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/CHMs/", folder, "_CHM")
 
-# Create output directory if it doesn't exist
+if (algo == "p2r") {
+  chm_algorithm <- p2r()
+  output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/CHMs/", folder, "_CHM_P2R")
+} else if (algo == "tin") {
+  chm_algorithm <- dsmtin()
+  output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/CHMs/", folder, "_CHM_TIN")
+} else if (algo == "pitfree") {
+  chm_algorithm <- pitfree(thresholds = c(0, 10, 20), max_edge = c(0, 1))
+  output_dir <- paste0("/gpfs/glad1/Theo/Data/Capstone/CHMs/", folder, "_CHM_Pitfree")
+} else {
+  stop("You must either enter P2R, TIN or Pitfree for the algorithm")
+}
 if (!dir.exists(output_dir)) {
   dir.create(output_dir)
 }
@@ -34,6 +47,7 @@ if (!dir.exists(output_dir)) {
 laz_files <- list.files(input_dir, pattern = "\\.laz$", full.names = TRUE)
 
 # Set up a parallel cluster: cl = number of cores
+tic()
 registerDoParallel(cl)
 
 # Parallelized loop for processing LAS files
@@ -78,29 +92,38 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       rm(las, dtm)
 
       # Generate Canopy Height Model (CHM)
-      chm <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
+      chm <- rasterize_canopy(nlas, res = resolution, algorithm = chm_algorithm)
       rm(nlas)
-      
+
       # Ensure the CHM is a RasterLayer object
       if (class(chm) != "RasterLayer") {
         chm <- raster(chm)
       }
-      
+
       # Reproject the raster to EPSG:3857
       proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
       chm_r <- projectRaster(chm, crs = proj, res = 4.77731426716)
       rm(chm)
-      
-      # Stretch the raster to 8-bit depending on projection
+
+      # Convert pixel values to proper vertical units
       chm_r <- chm_r * scale_factor
-      chm_r[chm_r > 60] <- 60
-      chm_r_stretched <- ceiling(chm_r * 4)
-      rm(chm_r)
-      
+
       # Save as .tif using LZW compression
-      writeRaster(chm_r_stretched, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
+      writeRaster(chm_r, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
       print(output_file)
-      rm(chm_r_stretched)
+      rm(chm_r)
     }
   }
 }
+
+# Extract timing
+timing <- toc(log = TRUE)
+elapsed_time <- timing$toc - timing$tic
+
+# Write to output file
+time_file <- paste0("/gpfs/glad1/Theo/Data/Capstone/", algo, "_time.txt")
+write(
+  paste(Sys.time(), "-CHM processing took", round(elapsed_time, 2), "seconds"),
+  file = time_file,
+  append = TRUE
+)
