@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 # Create argument parser
 parser <- ArgumentParser(description = "DTM processing script")
 parser$add_argument("-s", "--survey", help = "LAZ Survey name", required = TRUE)
-parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
+parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required = TRUE)
 parser$add_argument("-a", "--algorithm", help = "DTM algorithm", required = TRUE)
 
 # Parse arguments
@@ -100,19 +100,18 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
     }
   }
 }
-stopCluster(cl)
 
 # Extract timing
-timing <- toc(log = TRUE)
+timing <- toc(quiet = TRUE)
 elapsed_time <- timing$toc - timing$tic
 
 # Write to output file
-time_file <- paste0("/gpfs/glad1/Theo/Data/Capstone/", algo, "_time.txt")
+time_file <- "/gpfs/glad1/Theo/Data/Capstone/Logs/DTM_time.txt"
 mins <- floor(elapsed_time / 60)
 secs <- round(elapsed_time %% 60, 2)
 
 write(
-  paste(Sys.time(), "-DTM processing took", mins, "min", secs, "sec"),
+  paste(Sys.time(), "--DTM processing took", mins, "min", secs, "sec for", folder, "with", algo, "using", cl, "cores"),
   file = time_file,
   append = TRUE
 )

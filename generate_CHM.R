@@ -21,7 +21,7 @@ args <- parser$parse_args()
 
 # Set variables 
 folder <- args$survey
-cl <- args$cores
+cores <- args$cores
 algo <- args$algorithm
 algo <- tolower(algo)
 
@@ -48,6 +48,7 @@ laz_files <- list.files(input_dir, pattern = "\\.laz$", full.names = TRUE)
 
 # Set up a parallel cluster: cl = number of cores
 tic()
+cl <- makeCluster(cores)
 registerDoParallel(cl)
 
 # Parallelized loop for processing LAS files
@@ -115,19 +116,18 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
     }
   }
 }
-stopCluster(cl)
 
 # Extract timing
-timing <- toc(log = TRUE)
+timing <- toc(quiet = TRUE)
 elapsed_time <- timing$toc - timing$tic
 
 # Write to output file
-time_file <- paste0("/gpfs/glad1/Theo/Data/Capstone/", algo, "_time.txt")
+time_file <- "/gpfs/glad1/Theo/Data/Capstone/Logs/CHM_time.txt"
 mins <- floor(elapsed_time / 60)
 secs <- round(elapsed_time %% 60, 2)
 
 write(
-  paste(Sys.time(), "-DTM processing took", mins, "min", secs, "sec"),
+  paste(Sys.time(), "--CHM processing took", mins, "min", secs, "sec for", folder, "with", algo, "using", cl, "cores"),
   file = time_file,
   append = TRUE
 )
