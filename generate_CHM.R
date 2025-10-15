@@ -19,9 +19,9 @@ parser$add_argument("-a", "--algorithm", help = "CHM algorithm", required = TRUE
 # Parse arguments
 args <- parser$parse_args()
 
-# Set variables 
+# Set variables
 folder <- args$survey
-cores <- args$cores
+cl <- args$cores
 algo <- args$algorithm
 algo <- tolower(algo)
 
@@ -48,7 +48,6 @@ laz_files <- list.files(input_dir, pattern = "\\.laz$", full.names = TRUE)
 
 # Set up a parallel cluster: cl = number of cores
 tic()
-cl <- makeCluster(cores)
 registerDoParallel(cl)
 
 # Parallelized loop for processing LAS files
