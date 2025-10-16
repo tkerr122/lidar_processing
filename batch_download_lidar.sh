@@ -6,18 +6,15 @@
 # Initialize variables
 survey=""
 txt_file_number=""
+nb_jobs=100
 
 # Parse command-line arguments
 while getopts "s:t:" opt; do
   case ${opt} in
-    s )
-      survey=$OPTARG
-      ;;
-    t )
-      txt_file_number=$OPTARG
-      ;;
+    s ) survey=$OPTARG ;;
+    t ) txt_file_number=$OPTARG;;
     \? )
-      echo "Usage: sh $0 -s <survey_name> [-t <txt_file_number>]"
+      echo "Usage: sh $0 -s <survey_name> -t <txt_file_number>"
       exit 1
       ;;
   esac
@@ -29,8 +26,6 @@ if [ -z "$survey" ]; then
   echo "Usage: sh $0 -s <survey_name> [-t <txt_file_number>]"
   exit 1
 fi
-
-nb_jobs=100
 
 # Download files in parallel
 cd /gpfs/glad1/Theo/Data/Capstone/LAZ/${survey} || exit
