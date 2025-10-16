@@ -28,6 +28,6 @@ if [ -z "$survey" ]; then
 fi
 
 # Download files in parallel
-cd /gpfs/glad1/Theo/Data/Capstone/LAZ/${survey} || exit
+cd /gpfs/glad1/Theo/Data/Capstone/LAZ/"${survey}" || exit
 module load parallel/20151222
 cat "${survey}${txt_file_number}.txt" | parallel -j$nb_jobs wget -c -nc --wait=5 --random-wait --limit-rate=3M --no-check-certificate --retry-connrefused {}
