@@ -11,8 +11,8 @@ suppressPackageStartupMessages({
 
 # Create argument parser
 parser <- ArgumentParser(description = "LAZ to CHM processing script")
-parser$add_argument("-s", "--survey", help = "LAZ Survey name", required=TRUE)
-parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required=TRUE)
+parser$add_argument("-s", "--survey", help = "LAZ Survey name", required = TRUE)
+parser$add_argument("-c", "--cores", type = "integer", help = "Number of cores to use", required = TRUE)
 
 # Parse arguments
 args <- parser$parse_args()
