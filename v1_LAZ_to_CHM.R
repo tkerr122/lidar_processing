@@ -80,23 +80,23 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       # Generate Canopy Height Model (CHM)
       chm <- rasterize_canopy(nlas, res = resolution, algorithm = p2r())
       rm(nlas)
-      
+
       # Ensure the CHM is a RasterLayer object
       if (class(chm) != "RasterLayer") {
         chm <- raster(chm)
       }
-      
+
       # Reproject the raster to EPSG:3857
       proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
       chm_r <- projectRaster(chm, crs = proj, res = 4.77731426716)
       rm(chm)
-      
+
       # Stretch the raster to 8-bit depending on projection
       chm_r <- chm_r * scale_factor
       chm_r[chm_r > 60] <- 60
       chm_r_stretched <- ceiling(chm_r * 4)
       rm(chm_r)
-      
+
       # Save as .tif using LZW compression
       writeRaster(chm_r_stretched, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
       print(output_file)
