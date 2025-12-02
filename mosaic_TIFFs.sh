@@ -6,9 +6,9 @@
 module load rh9/gdal
 
 # Define i/o folders
-input_folder="/gpfs/glad1/Theo/Data/Capstone/CHMs/AL_17County_CHM_P2R"
-output_file="/gpfs/glad1/Theo/Data/Capstone/CHMs/AL_17County_CHM_P2R.vrt"
-output_tiff="/gpfs/glad1/Theo/Data/Capstone/CHMs/AL_17County_CHM_P2R.tif"
+input_folder="/gpfs/glad1/Theo/Data/Capstone/DTMs/AL_Coffee_DTM_Kriging"
+output_file="/gpfs/glad1/Theo/Data/Capstone/DTMs/AL_Coffee_DTM_Kriging.vrt"
+output_tiff="/gpfs/glad1/Theo/Data/Capstone/DTMs/AL_Coffee_DTM_Kriging.tif"
 
 # Create VRT
 gdalbuildvrt "${output_file}" "${input_folder}"/*.tif

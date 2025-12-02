@@ -120,13 +120,15 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
 timing <- toc(quiet = TRUE)
 elapsed_time <- timing$toc - timing$tic
 
-# Write to output file
+# Convert to hours, minutes, seconds
 time_file <- "/gpfs/glad1/Theo/Data/Capstone/Logs/CHM_time.txt"
-mins <- floor(elapsed_time / 60)
-secs <- round(elapsed_time %% 60, 2)
+hours <- floor(elapsed_time / 3600)
+mins  <- floor((elapsed_time %% 3600) / 60)
+secs  <- round(elapsed_time %% 60, 2)
 
+# Write to log
 write(
-  paste(Sys.time(), "--CHM processing took", mins, "min", secs, "sec for", folder, "with", algo, "using", cl, "cores"),
+  paste(Sys.time(), "-- CHM processing took", hours, "hr", mins, "min", secs, "sec for", folder, "with", algo, "using", cl, "cores"),
   file = time_file,
   append = TRUE
 )
