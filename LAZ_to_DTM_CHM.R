@@ -23,11 +23,15 @@ cl <- args$cores
 
 # Set working directory
 input_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/LAZ/", folder)
-output_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/CHMs_raw/", folder, "_CHM")
+output_dtm_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/DTMs/", folder, "_DTM")
+output_chm_dir <- paste0("/gpfs/glad1/Theo/Data/Lidar/CHMs_raw/", folder, "_CHM")
 
-# Create output directory if it doesn't exist
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir)
+# Create output directories if they don't exist
+if (!dir.exists(output_dtm_dir)) {
+  dir.create(output_dtm_dir)
+}
+if (!dir.exists(output_chm_dir)) {
+  dir.create(output_chm_dir)
 }
 
 # List all the .laz files in the input directory
@@ -39,10 +43,11 @@ registerDoParallel(cl)
 # Parallelized loop for processing LAS files
 foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar% {
   # Generate output file name
-  output_file <- file.path(output_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_CHM.tif"))
+  output_dtm <- file.path(output_dtm_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_DTM.tif"))
+  output_chm <- file.path(output_chm_dir, paste0(basename(tools::file_path_sans_ext(laz_file)), "_CHM.tif"))
 
   # Check if the file exists
-  if (file.exists(output_file)) {
+  if (file.exists(output_chm)) {
     print("File exists, skipping")
     next
   } else {
@@ -73,6 +78,20 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       # Generate Digital Terrain Model (DTM)
       dtm <- rasterize_terrain(las, res = resolution, knnidw())
 
+      # Ensure the DTM is a RasterLayer object
+      if (class(dtm) != "RasterLayer") {
+        dtm <- raster(dtm)
+      }
+
+      # Reproject the raster to EPSG:3857
+      proj <- "+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext +no_defs"
+      dtm_r <- projectRaster(dtm, crs = proj, res = 4.77731426716)
+
+      # Save as .tif using LZW compression
+      writeRaster(dtm_r, filename = output_dtm, format = "GTiff", options = "COMPRESS=LZW", datatype = "FLT4S")
+      print(output_dtm)
+      rm(dtm_r)
+
       # Normalize the point cloud
       nlas <- las - dtm
       rm(las, dtm)
@@ -98,8 +117,8 @@ foreach(laz_file = laz_files, .combine = "c", .errorhandling = "remove") %dopar%
       rm(chm_r)
 
       # Save as .tif using LZW compression
-      writeRaster(chm_r_stretched, filename = output_file, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
-      print(output_file)
+      writeRaster(chm_r_stretched, filename = output_chm, format = "GTiff", options = "COMPRESS=LZW", datatype = "INT1U")
+      print(output_chm)
       rm(chm_r_stretched)
     }
   }
